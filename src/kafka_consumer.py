@@ -10,12 +10,20 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 # File to store normal observations
 NORMAL_DATA_FILE = 'normal_observations.json'
 
+# Elasticsearch index name
+INDEX_NAME = "bp_fhir_index"
+
 # Initialize Elasticsearch client
 es = Elasticsearch(hosts=["http://localhost:9200"])
 if not es.ping():
     logging.error("Cannot connect to Elasticsearch. Exiting...")
     exit(1)
-logging.info("Connected to Elasticsearch.")
+
+# Ensure the index exists
+if not es.indices.exists(index=INDEX_NAME):
+    logging.info(f"Creating Elasticsearch index: {INDEX_NAME}")
+    es.indices.create(index=INDEX_NAME)
+logging.info(f"Connected to Elasticsearch and index {INDEX_NAME} is ready.")
 
 # Initialize Kafka Consumer
 consumer = KafkaConsumer(
@@ -26,24 +34,32 @@ consumer = KafkaConsumer(
     value_deserializer=lambda v: json.loads(v.decode('utf-8'))
 )
 
-# Function to classify blood pressure categories
+# Function to classify blood pressure categories based on FHIR data
 def classify_bp(observation):
-    systolic = observation.get('systolic_pressure', 0)
-    diastolic = observation.get('diastolic_pressure', 0)
+    systolic = None
+    diastolic = None
 
-    # Normal blood pressure
+    # Extract systolic and diastolic pressures from FHIR structure
+    for component in observation.get("component", []):
+        code = component.get("code", {}).get("coding", [{}])[0].get("code")
+        if code == "8480-6":  # Systolic blood pressure
+            systolic = component.get("valueQuantity", {}).get("value")
+        elif code == "8462-4":  # Diastolic blood pressure
+            diastolic = component.get("valueQuantity", {}).get("value")
+
+    if systolic is None or diastolic is None:
+        logging.warning(f"Missing systolic or diastolic values in observation: {observation}")
+        return "unknown"
+
+    # Classify based on blood pressure values
     if systolic < 120 and diastolic < 80:
         return "normal"
-    # Elevated blood pressure
     elif 120 <= systolic <= 129 and diastolic < 80:
         return "elevated"
-    # High blood pressure (Hypertension Stage 1)
     elif 130 <= systolic <= 139 or 80 <= diastolic <= 89:
         return "hypertension_stage_1"
-    # High blood pressure (Hypertension Stage 2)
-    elif systolic >= 140 or diastolic >= 90:
+    elif 140 <= systolic <= 180 or 90 <= diastolic <= 120:
         return "hypertension_stage_2"
-    # Hypertensive Crisis
     elif systolic > 180 or diastolic > 120:
         return "hypertensive_crisis"
     return "unknown"
@@ -74,7 +90,7 @@ def consume_and_process():
                 save_to_file(observation)
             else:
                 # Index non-normal observations into Elasticsearch
-                es.index(index="anomalies_index", document=observation)
+                es.index(index=INDEX_NAME, document=observation)
                 logging.info(f"Anomaly ({category}) indexed into Elasticsearch.")
     except Exception as e:
         logging.error(f"Error while consuming messages: {e}")

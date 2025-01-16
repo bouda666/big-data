@@ -3,6 +3,7 @@ import json
 import logging
 import time
 import random
+from datetime import datetime
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -16,7 +17,7 @@ producer = KafkaProducer(
 # Topic name
 TOPIC = 'fhir_observations'
 
-# Function to generate mixed observations
+# Function to generate mixed observations in FHIR format
 def generate_messages():
     for i in range(100):  # Number of messages to produce
         # Randomly generate blood pressure values
@@ -27,12 +28,72 @@ def generate_messages():
             systolic = random.randint(120, 200)  # Elevated or hypertensive systolic
             diastolic = random.randint(50, 130)  # Elevated or hypertensive diastolic
 
-        # Create the observation message
+        # Create the observation message in FHIR format
         message = {
-            'patient_id': f'patient-{i}',
-            'systolic_pressure': systolic,
-            'diastolic_pressure': diastolic,
-            'timestamp': time.time()
+            "resourceType": "Observation",
+            "id": f"blood-pressure-{i}",
+            "status": "final",
+            "category": [
+                {
+                    "coding": [
+                        {
+                            "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                            "code": "vital-signs",
+                            "display": "Vital Signs"
+                        }
+                    ]
+                }
+            ],
+            "code": {
+                "coding": [
+                    {
+                        "system": "http://loinc.org",
+                        "code": "85354-9",
+                        "display": "Blood pressure panel with all children optional"
+                    }
+                ],
+                "text": "Blood pressure systolic & diastolic"
+            },
+            "subject": {
+                "reference": f"Patient/{i}"
+            },
+            "effectiveDateTime": datetime.now().isoformat(),
+            "component": [
+                {
+                    "code": {
+                        "coding": [
+                            {
+                                "system": "http://loinc.org",
+                                "code": "8480-6",
+                                "display": "Systolic blood pressure"
+                            }
+                        ]
+                    },
+                    "valueQuantity": {
+                        "value": systolic,
+                        "unit": "mmHg",
+                        "system": "http://unitsofmeasure.org",
+                        "code": "mm[Hg]"
+                    }
+                },
+                {
+                    "code": {
+                        "coding": [
+                            {
+                                "system": "http://loinc.org",
+                                "code": "8462-4",
+                                "display": "Diastolic blood pressure"
+                            }
+                        ]
+                    },
+                    "valueQuantity": {
+                        "value": diastolic,
+                        "unit": "mmHg",
+                        "system": "http://unitsofmeasure.org",
+                        "code": "mm[Hg]"
+                    }
+                }
+            ]
         }
 
         # Log and send the message
