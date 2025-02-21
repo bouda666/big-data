@@ -31,7 +31,7 @@ def generate_messages():
         # Create the observation message in FHIR format
         message = {
             "resourceType": "Observation",
-            "id": "blood-pressure-{}".format(i),
+            "id": f"blood-pressure-{i}",
             "status": "final",
             "category": [
                 {
@@ -55,7 +55,7 @@ def generate_messages():
                 "text": "Blood pressure systolic & diastolic"
             },
             "subject": {
-                "reference": "Patient/{}".format(i)
+                "reference": f"Patient/{i}"
             },
             "effectiveDateTime": datetime.now().isoformat(),
             "component": [
@@ -97,7 +97,7 @@ def generate_messages():
         }
 
         # Log and send the message
-        logging.info("Producing message: {}".format(message))
+        logging.info(f"Producing message: {message}")
         producer.send(TOPIC, value=message)
 
         # Add a small delay to simulate real-time data generation
@@ -109,7 +109,7 @@ if __name__ == "__main__":
         logging.info("Starting Kafka Producer...")
         generate_messages()
     except Exception as e:
-        logging.error("Error in Kafka Producer: {}".format(e))
+        logging.error(f"Error in Kafka Producer: {e}")
     finally:
         producer.close()
         logging.info("Kafka Producer stopped.")

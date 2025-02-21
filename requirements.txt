@@ -1,1 +1,5 @@
-Commande ECHO activ‚e.
+python==2.7.11
+kafka-python==1.4.7
+elasticsearch==7.9.1
+fhir.resources==7.0.1
+faker==18.6.0

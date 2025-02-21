@@ -20,7 +20,7 @@ services:
       - "9300:9300"
     networks:
       net_es:
-        ipv4_address: 171.30.0.2
+        ipv4_address: 192.168.30.2
     ulimits:
       memlock:
         soft: -1
@@ -28,6 +28,12 @@ services:
       nofile:
         soft: 65536
         hard: 65536
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
 
   kibana:
     image: kibana:7.9.1
@@ -40,9 +46,10 @@ services:
       - "5601:5601"
     networks:
       net_es:
-        ipv4_address: 171.30.0.3
+        ipv4_address: 192.168.30.3
     depends_on:
-      - elasticsearch
+      elasticsearch:
+        condition: service_healthy
 
   zookeeper:
     image: confluentinc/cp-zookeeper:6.2.0
@@ -54,7 +61,8 @@ services:
       ZOOKEEPER_TICK_TIME: 2000
     networks:
       net_kafka_nifi:
-        ipv4_address: 171.21.0.9
+        ipv4_address: 192.168.21.9
+    restart: always
 
   kafka:
     image: confluentinc/cp-kafka:6.2.0
@@ -67,7 +75,6 @@ services:
     environment:
       ALLOW_ANONYMOUS_LOGIN: "yes"
       KAFKA_BROKER_ID: 1
-      KAFKA_ADVERTISED_HOST_NAME: kafka
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
@@ -78,10 +85,10 @@ services:
       KAFKA_CONFLUENT_BALANCER_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-      BOOTSTRAP_SERVERS: kafka:9092
     networks:
       net_kafka_nifi:
-        ipv4_address: 171.21.0.10
+        ipv4_address: 192.168.21.10
+    restart: always
 
   kafka-ui:
     image: provectuslabs/kafka-ui
@@ -90,7 +97,6 @@ services:
       - "8081:8080"
     restart: always
     depends_on:
-      - zookeeper
       - kafka
     environment:
       KAFKA_CLUSTERS_0_NAME: local
@@ -99,17 +105,17 @@ services:
       DYNAMIC_CONFIG_ENABLED: "true"
     networks:
       net_kafka_nifi:
-        ipv4_address: 171.21.0.11
+        ipv4_address: 192.168.21.11
 
 networks:
   net_es:
     ipam:
       driver: default
       config:
-        - subnet: 171.30.0.0/16
+        - subnet: 192.168.30.0/24
 
   net_kafka_nifi:
     ipam:
       driver: default
       config:
-        - subnet: 171.21.0.0/16
+        - subnet: 192.168.21.0/24

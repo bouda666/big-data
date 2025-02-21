@@ -21,9 +21,9 @@ if not es.ping():
 
 # Ensure the index exists
 if not es.indices.exists(index=INDEX_NAME):
-    logging.info(f"Creating Elasticsearch index: {INDEX_NAME}")
+    logging.info("Creating Elasticsearch index: {}".format(INDEX_NAME))
     es.indices.create(index=INDEX_NAME)
-logging.info(f"Connected to Elasticsearch and index {INDEX_NAME} is ready.")
+logging.info("Connected to Elasticsearch and index {} is ready.".format(INDEX_NAME))
 
 # Initialize Kafka Consumer
 consumer = KafkaConsumer(
@@ -48,7 +48,7 @@ def classify_bp(observation):
             diastolic = component.get("valueQuantity", {}).get("value")
 
     if systolic is None or diastolic is None:
-        logging.warning(f"Missing systolic or diastolic values in observation: {observation}")
+        logging.warning("Missing systolic or diastolic values in observation: {}".format(observation))
         return "unknown"
 
     # Classify based on blood pressure values
@@ -71,7 +71,7 @@ def save_to_file(observation):
             file.write(json.dumps(observation) + '\n')
         logging.info("Normal observation saved to file.")
     except Exception as e:
-        logging.error(f"Error saving observation to file: {e}")
+        logging.error("Error saving observation to file: {}".format(e))
 
 # Consume messages and process them
 def consume_and_process():
@@ -79,7 +79,7 @@ def consume_and_process():
         logging.info("Starting Kafka Consumer...")
         for message in consumer:
             observation = message.value
-            logging.info(f"Consumed message: {observation}")
+            logging.info("Consumed message: {}".format(observation))
 
             # Classify the observation
             category = classify_bp(observation)
@@ -91,9 +91,9 @@ def consume_and_process():
             else:
                 # Index non-normal observations into Elasticsearch
                 es.index(index=INDEX_NAME, document=observation)
-                logging.info(f"Anomaly ({category}) indexed into Elasticsearch.")
+                logging.info("Anomaly ({}) indexed into Elasticsearch.".format(category))
     except Exception as e:
-        logging.error(f"Error while consuming messages: {e}")
+        logging.error("Error while consuming messages: {}".format(e))
     finally:
         consumer.close()
         logging.info("Kafka Consumer stopped.")
@@ -102,6 +102,6 @@ if __name__ == "__main__":
     # Ensure the file for normal observations exists
     if not os.path.exists(NORMAL_DATA_FILE):
         open(NORMAL_DATA_FILE, 'w').close()
-        logging.info(f"Created file: {NORMAL_DATA_FILE}")
+        logging.info("Created file: {}".format(NORMAL_DATA_FILE))
     # Start consuming messages
     consume_and_process()
